@@ -3,8 +3,36 @@
 
 import re
 import json
+from serial import Serial
+from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+
+
+class Car(object):
+
+    def __init__(self, *args, **kwargs):
+        self.serial = Serial(*args, **kwargs)
+
+    def forward(self):
+        self.serial.write(b'f')
+
+    def backward(self):
+        self.serial.write(b'b')
+
+    def left(self):
+        self.serial.write(b'l')
+
+    def right(self):
+        self.serial.write(b'r')
+
+    def stop(self):
+        self.serial.write(b's')
+
+
+car = Car('/dev/ttyACM0', 115200)
+
+sleep(2)
 
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler):
@@ -44,12 +72,26 @@ class RequestHandler(BaseHTTPRequestHandler):
                 getattr(self, method)(query)
 
     def index(self, query):
+
+        action = query.get('action')
+        if action:
+            action = getattr(car, action, None)
+            if action:
+                action()
+
         self.wfile.write("""
             <h1>Marsem</h1>
 
             <ul>
                 <li><a href="/test1">Test 1</a></li>
                 <li><a href="/test2">Test 2</a></li>
+
+                <li>Actions:</li>
+                <li><a href="/?action=forward">forward</a></li>
+                <li><a href="/?action=backward">backward</a></li>
+                <li><a href="/?action=left">left</a></li>
+                <li><a href="/?action=right">right</a></li>
+                <li><a href="/?action=stop">stop</a></li>
             </ul>
 
             <h2>Query</h2>

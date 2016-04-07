@@ -7,6 +7,7 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import platform
 
 
 class Car(object):
@@ -29,15 +30,18 @@ class Car(object):
     def stop(self):
         self.serial.write(b's')
 
-
-car = Car('/dev/ttyACM0', 115200)
+ # Multiplatform support for testing execution -- to be removed in final version
+if platform.system() == "Linux":
+    car = Car('/dev/ttyACM0', 115200)
+if platform.system() == "Windows":
+    car = Car('/COM1', 115200)
 
 sleep(2)
-
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler):
     server_address = ('', 8000)
     httpd = server_class(server_address, handler_class)
+    #Infinite loop?
     httpd.serve_forever()
 
 
@@ -67,12 +71,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                     pass
             query[key] = value
 
+         # If given parameter matches method in self, execute it. ?
         for method, regex in self.urls.items():
             if re.match(regex, path):
                 getattr(self, method)(query)
 
     def index(self, query):
 
+        # Looks for a matching method in the Car object. 
+        # If found, it executes it. ?
         action = query.get('action')
         if action:
             action = getattr(car, action, None)
@@ -109,6 +116,5 @@ class RequestHandler(BaseHTTPRequestHandler):
             <h1>Marsem</h1>
             <h2>Test2</h2>
         """.encode())
-
 
 run(handler_class=RequestHandler)

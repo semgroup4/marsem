@@ -7,7 +7,6 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import platform
 
 
 class Car(object):
@@ -27,35 +26,27 @@ class Car(object):
     def right(self):
         self.serial.write(b'r')
 
-    def stop(self):
-        self.serial.write(b's')
 
- # Multiplatform support for testing execution -- to be removed in final version
-if platform.system() == "Linux":
-    car = Car('/dev/ttyACM0', 115200)
-if platform.system() == "Windows":
-    car = Car('/COM1', 115200)
+car = Car('/dev/ttyACM0', 115200)
 
 sleep(2)
 
-def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler):
-    server_address = ('', 8000)
+
+def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
+    server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    #Infinite loop?
     httpd.serve_forever()
 
 
 class RequestHandler(BaseHTTPRequestHandler):
 
     urls = {
-        'index': r'^/$',
-        'test1': r'^/test1$',
-        'test2': r'^/test2$',
+        'control': r'^/$',
     }
 
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html')
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
         result = urlparse(self.path)
@@ -71,50 +62,20 @@ class RequestHandler(BaseHTTPRequestHandler):
                     pass
             query[key] = value
 
-         # If given parameter matches method in self, execute it. ?
         for method, regex in self.urls.items():
             if re.match(regex, path):
-                getattr(self, method)(query)
+                data = getattr(self, method)(query)
+                self.wfile.write(json.dumps(data).encode())
 
-    def index(self, query):
+    def control(self, query):
 
-        # Looks for a matching method in the Car object. 
-        # If found, it executes it. ?
         action = query.get('action')
         if action:
             action = getattr(car, action, None)
             if action:
                 action()
 
-        self.wfile.write("""
-            <h1>Marsem</h1>
+        return {}
 
-            <ul>
-                <li><a href="/test1">Test 1</a></li>
-                <li><a href="/test2">Test 2</a></li>
-
-                <li>Actions:</li>
-                <li><a href="/?action=forward">forward</a></li>
-                <li><a href="/?action=backward">backward</a></li>
-                <li><a href="/?action=left">left</a></li>
-                <li><a href="/?action=right">right</a></li>
-                <li><a href="/?action=stop">stop</a></li>
-            </ul>
-
-            <h2>Query</h2>
-            <pre>{}</pre>
-        """.format(query).encode())
-
-    def test1(self, query):
-        self.wfile.write("""
-            <h1>Marsem</h1>
-            <h2>Test1</h2>
-        """.encode())
-
-    def test2(self, query):
-        self.wfile.write("""
-            <h1>Marsem</h1>
-            <h2>Test2</h2>
-        """.encode())
 
 run(handler_class=RequestHandler)

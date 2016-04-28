@@ -7,7 +7,9 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import server.stream as stream
 
+stream_controller = stream.Controller(0,640,480,20)
 
 class Car(object):
 
@@ -42,6 +44,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     urls = {
         'control': r'^/$',
+        'stream': r'^/stream/$'
     }
 
     def do_GET(self):
@@ -67,8 +70,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 data = getattr(self, method)(query)
                 self.wfile.write(json.dumps(data).encode())
 
-    def control(self, query):
 
+    def control(self, query):
         action = query.get('action')
         if action:
             action = getattr(car, action, None)
@@ -76,6 +79,17 @@ class RequestHandler(BaseHTTPRequestHandler):
                 action()
 
         return {}
+
+
+    def stream(self, query):
+        param = query.get('stream')
+        if param:
+            stream_controller.start()
+            return {"message": "Stream started"}
+        else:
+            stream_controller.stop()
+            stream.controller.join()
+            return {"message": "Stream ended"}                
 
 
 run(handler_class=RequestHandler)

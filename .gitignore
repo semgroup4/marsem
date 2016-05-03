@@ -1,2 +1,4 @@
 dist/
 source/*
+.pyc
+__pycache__

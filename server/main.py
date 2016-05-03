@@ -7,9 +7,9 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import server.stream as stream
+import stream.stream as stream
 
-stream_controller = stream.Controller(0,640,480,20)
+stream_controller = stream.Stream()
 
 class Car(object):
 
@@ -83,12 +83,12 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def stream(self, query):
         param = query.get('stream')
-        if param:
+        if param.lower() == 'true':
             stream_controller.start()
             return {"message": "Stream started"}
         else:
-            stream_controller.stop()
-            stream.controller.join()
+            stream_controller.stop_controller()
+            stream_controller.join()
             return {"message": "Stream ended"}                
 
 

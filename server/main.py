@@ -42,6 +42,8 @@ def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000
 
 class RequestHandler(BaseHTTPRequestHandler):
 
+    log_file = open('marsem.log', 'w')
+
     urls = {
         'control': r'^/$',
         'stream': r'^/stream/$'
@@ -70,7 +72,6 @@ class RequestHandler(BaseHTTPRequestHandler):
                 data = getattr(self, method)(query)
                 self.wfile.write(json.dumps(data).encode())
 
-
     def control(self, query):
         action = query.get('action')
         if action:
@@ -81,15 +82,23 @@ class RequestHandler(BaseHTTPRequestHandler):
         return {}
 
 
-    def stream(self, query):
+    def stream(self, stream, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            stream_controller.start()
+            stream = stream.Stream()
+            stream.start()
             return {"message": "Stream started"}
         else:
-            stream_controller.stop_controller()
-            stream_controller.join()
-            return {"message": "Stream ended"}                
+            stream.stop_controller()
+            stream.join()
+            return {"message": "Stream ended"}  
+
+    def log_message(self, format, *args):
+        self.log_file.write("%s - - [%s] %s\n" %
+                            (self.client_address[0],
+                             self.log_date_time_string(),
+                             format%args))
 
 
-run(handler_class=RequestHandler)
+if __name__ == '__main__':
+    run(handler_class=RequestHandler)

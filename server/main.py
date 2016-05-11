@@ -7,9 +7,7 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import stream.stream as stream
-
-stream_controller = stream.Stream()
+import stream as streams
 
 class Car(object):
 
@@ -40,13 +38,41 @@ def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000
     httpd.serve_forever()
 
 
+
+class StreamController():
+    """ Controls the thread for raspivid and netcat """
+    stream = None
+
+    def control(self, t):
+        if t:
+            print(self.stream)
+            if self.stream != None:
+                if self.stream.isAlive():
+                    return {"status": "stream is already running"}
+                else:
+                    self.stream = streams.Stream()
+            else:
+                self.stream = streams.Stream()
+            self.stream.start()
+            return {"status": "stream started"}
+        else:
+            self.stream.stop()
+            self.stream.join()
+            return {"status": "stream ended"}        
+
+stream_controller = StreamController()
+
 class RequestHandler(BaseHTTPRequestHandler):
 
+    print("CREATING A NEW REQUEST INSTANCE")
+
     log_file = open('marsem.log', 'w')
+    stream = None
+
 
     urls = {
         'control': r'^/$',
-        'stream': r'^/stream/$'
+        'stream_controller': r'^/stream/$'
     }
 
     def do_GET(self):
@@ -82,16 +108,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         return {}
 
 
-    def stream(self, stream, query):
+    def stream_controller(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            stream = stream.Stream()
-            stream.start()
-            return {"message": "Stream started"}
+            return stream_controller.control(True)
         else:
-            stream.stop_controller()
-            stream.join()
-            return {"message": "Stream ended"}  
+            return stream_controller.control(False)
+
 
     def log_message(self, format, *args):
         self.log_file.write("%s - - [%s] %s\n" %

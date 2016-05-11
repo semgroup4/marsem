@@ -64,11 +64,8 @@ stream_controller = StreamController()
 
 class RequestHandler(BaseHTTPRequestHandler):
 
-    print("CREATING A NEW REQUEST INSTANCE")
-
     log_file = open('marsem.log', 'w')
     stream = None
-
 
     urls = {
         'control': r'^/$',

@@ -45,7 +45,6 @@ class StreamController():
 
     def control(self, t):
         if t:
-            print(self.stream)
             if self.stream != None:
                 if self.stream.isAlive():
                     return {"status": "stream is already running"}

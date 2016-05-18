@@ -129,6 +129,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             return stream_controller.control(False)
 
     
+    """ Takes a picture with the raspberry camera, returns a binary of the image. """
     def picture_controller(self, query):
         if stream_controller.running:
             self.send_error(503, 

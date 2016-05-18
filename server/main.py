@@ -43,6 +43,7 @@ def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000
 class StreamController():
     """ Controls the thread for raspivid and netcat """
     stream = None
+    running = False
 
     def control(self, t):
         if t:
@@ -54,13 +55,31 @@ class StreamController():
             else:
                 self.stream = streams.Stream()
             self.stream.start()
+            self.running = True
             return {"status": "stream started"}
         else:
             self.stream.stop()
             self.stream.join()
+            self.running = False
             return {"status": "stream ended"}        
 
+class PictureController():
+    "Blocks the main thread until the camera has taken an image"
+
+    camera = None
+
+    def control(self):
+            self.camera = camera.Camera()
+            picture = self.camera.take_picture()
+            self.send_header("Content-Type", "image/jpeg")
+            self.end_headers()
+            self.wfile.write(picture.read())
+            picture.close()
+            return
+
+
 stream_controller = StreamController()
+picture_controller = PictureController()
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -69,7 +88,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     urls = {
         'control': r'^/$',
-        'stream_controller': r'^/stream/$'
+        'stream_controller': r'^/stream/$',
+        'picture_controller': r'^/picture/$'
     }
 
     def do_GET(self):
@@ -112,6 +132,16 @@ class RequestHandler(BaseHTTPRequestHandler):
         else:
             return stream_controller.control(False)
 
+    
+    def picture_controller(self, query):
+        if stream_controller.running:
+            self.send_error(503, 
+                            message="Camera is busy", 
+                            explain="The camera is currently busy with streaming")
+            return
+        return picture_controller.control()
+            
+        
 
     def log_message(self, format, *args):
         self.log_file.write("%s - - [%s] %s\n" %

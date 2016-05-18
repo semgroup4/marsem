@@ -55,7 +55,7 @@ class StreamController():
             else:
                 self.stream = streams.Stream()
             self.stream.start()
-            self.running = True
+            self.running = Truex
             return {"status": "stream started"}
         else:
             self.stream.stop()
@@ -70,12 +70,8 @@ class PictureController():
 
     def control(self):
             self.camera = camera.Camera()
-            picture = self.camera.take_picture()
-            self.send_header("Content-Type", "image/jpeg")
-            self.end_headers()
-            self.wfile.write(picture.read())
-            picture.close()
-            return
+            return self.camera.take_picture()
+
 
 
 stream_controller = StreamController()
@@ -139,7 +135,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                             message="Camera is busy", 
                             explain="The camera is currently busy with streaming")
             return
-        return picture_controller.control()
+        else:
+            picture = picture_controller.control()
+            self.wfile.write(picture)
+            return ""
             
         
 

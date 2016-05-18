@@ -8,6 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import stream
+import camera
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
@@ -15,11 +16,50 @@ def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000
     httpd.serve_forever()
 
 
+class StreamController():
+    """ Controls the thread for raspivid and netcat """
+    stream = None
+    running = False
+
+    def control(self, t):
+        if t:
+            if self.stream != None:
+                if self.stream.isAlive():
+                    return {"status": "stream is already running"}
+                else:
+                    self.stream = streams.Stream()
+            else:
+                self.stream = streams.Stream()
+            self.stream.start()
+            self.running = Truex
+            return {"status": "stream started"}
+        else:
+            self.stream.stop()
+            self.stream.join()
+            self.running = False
+            return {"status": "stream ended"}        
+
+class PictureController():
+    "Blocks the main thread until the camera has taken an image"
+
+    camera = None
+
+    def control(self):
+        p = None
+        with open("test.jpg", "rb") as picture:
+            p = picture.read()
+        return p
+
+
+picture_controller = PictureController()
+stream_controller = StreamController()
+
 class RequestHandler(BaseHTTPRequestHandler):
 
     urls = {
         'control': r'^/$',
-        'stream': r'^/stream/$'
+        'stream': r'^/stream/$',
+        'picture_controller': r'^/picture/$',
     }
 
     def do_GET(self):
@@ -62,12 +102,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             return {"message": "Stream ended"}                
 
     def picture_controller(self, query):
-        if stream_controller.running:
+        if stream_controller.running:          
             self.send_error(503, 
                             message="Camera is busy", 
                             explain="The camera is currently busy with streaming")
             return
-        return picture_controller.control()
+        else:
+            picture = picture_controller.control()
+            self.send_header("Content-Type", "image/jpeg")
+            self.end_headers()
+            self.wfile.write(picture)
+            return ""
+
             
 
 

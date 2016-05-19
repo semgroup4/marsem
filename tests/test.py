@@ -3,42 +3,17 @@
 
 import re
 import json
-from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-import stream as streams
-import camera as camera
-
-class Car(object):
-
-    def __init__(self, *args, **kwargs):
-        self.serial = Serial(*args, **kwargs)
-
-    def forward(self):
-        self.serial.write(b'f')
-
-    def backward(self):
-        self.serial.write(b'b')
-
-    def left(self):
-        self.serial.write(b'l')
-
-    def right(self):
-        self.serial.write(b'r')
-
-
-car = Car('/dev/ttyACM0', 115200)
-
-sleep(2)
-
+import stream
+import camera
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     httpd.serve_forever()
-
 
 
 class StreamController():
@@ -50,17 +25,19 @@ class StreamController():
         if t:
             if self.stream != None:
                 if self.stream.isAlive():
-                    return {"running": True}
+                    return {"status": "stream is already running"}
                 else:
                     self.stream = streams.Stream()
             else:
                 self.stream = streams.Stream()
             self.stream.start()
-            return {"running": True}
+            self.running = Truex
+            return {"status": "stream started"}
         else:
             self.stream.stop()
             self.stream.join()
-            return {"running": False}        
+            self.running = False
+            return {"status": "stream ended"}        
 
 class PictureController():
     "Blocks the main thread until the camera has taken an image"
@@ -68,23 +45,21 @@ class PictureController():
     camera = None
 
     def control(self):
-            self.camera = camera.Camera()
-            return self.camera.take_picture()
+        p = None
+        with open("test.jpg", "rb") as picture:
+            p = picture.read()
+        return p
 
 
-
-stream_controller = StreamController()
 picture_controller = PictureController()
+stream_controller = StreamController()
 
 class RequestHandler(BaseHTTPRequestHandler):
 
-    log_file = open('marsem.log', 'w')
-    stream = None
-
     urls = {
         'control': r'^/$',
-        'stream_controller': r'^/stream/$',
-        'picture_controller': r'^/picture/$'
+        'stream': r'^/stream/$',
+        'picture_controller': r'^/picture/$',
     }
 
     def do_GET(self):
@@ -110,44 +85,38 @@ class RequestHandler(BaseHTTPRequestHandler):
                 data = getattr(self, method)(query)
                 self.wfile.write(json.dumps(data).encode())
 
+
     def control(self, query):
         action = query.get('action')
         if action:
-            action = getattr(car, action, None)
-            if action:
-                action()
-
+            pass
+        print("Empty response")
         return {}
 
 
-    def stream_controller(self, query):
+    def stream(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            return json.dumps(stream_controller.control(True))
+            return {"message": "Stream started"}
         else:
-            return json.dumps(stream_controller.control(False))
+            return {"message": "Stream ended"}                
 
-    
-    """ Takes a picture with the raspberry camera, returns a binary of the image. """
     def picture_controller(self, query):
-        if stream_controller.running:
+        if stream_controller.running:          
             self.send_error(503, 
                             message="Camera is busy", 
                             explain="The camera is currently busy with streaming")
             return
         else:
             picture = picture_controller.control()
+            self.send_header("Content-Type", "image/jpeg")
+            self.end_headers()
             self.wfile.write(picture)
             return ""
+
             
-        
-
-    def log_message(self, format, *args):
-        self.log_file.write("%s - - [%s] %s\n" %
-                            (self.client_address[0],
-                             self.log_date_time_string(),
-                             format%args))
 
 
-if __name__ == '__main__':
-    run(handler_class=RequestHandler)
+    
+
+run(handler_class=RequestHandler)

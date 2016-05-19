@@ -109,8 +109,6 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         else:
             picture = picture_controller.control()
-            self.send_header("Content-Type", "image/jpeg")
-            self.end_headers()
             self.wfile.write(picture)
             return ""
 

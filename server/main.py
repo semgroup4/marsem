@@ -9,7 +9,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import stream as streams
 
-"""
 class Car(object):
 
     def __init__(self, *args, **kwargs):
@@ -30,9 +29,8 @@ class Car(object):
 
 car = Car('/dev/ttyACM0', 115200)
 
-
 sleep(2)
-"""
+
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)

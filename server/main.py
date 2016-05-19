@@ -3,7 +3,7 @@
 
 import re
 import json
-from serial import Serial
+#from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -29,7 +29,6 @@ class Car(object):
 
 car = Car('/dev/ttyACM0', 115200)
 
-
 sleep(2)
 
 
@@ -49,19 +48,17 @@ class StreamController():
         if t:
             if self.stream != None:
                 if self.stream.isAlive():
-                    return {"status": "stream is already running"}
+                    return {"running": True}
                 else:
                     self.stream = streams.Stream()
             else:
                 self.stream = streams.Stream()
             self.stream.start()
-            self.running = Truex
-            return {"status": "stream started"}
+            return {"running": True}
         else:
             self.stream.stop()
             self.stream.join()
-            self.running = False
-            return {"status": "stream ended"}        
+            return {"running": False}        
 
 class PictureController():
     "Blocks the main thread until the camera has taken an image"
@@ -124,9 +121,9 @@ class RequestHandler(BaseHTTPRequestHandler):
     def stream_controller(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            return stream_controller.control(True)
+            return json.dumps(stream_controller.control(True))
         else:
-            return stream_controller.control(False)
+            return json.dumps(stream_controller.control(False))
 
     
     """ Takes a picture with the raspberry camera, returns a binary of the image. """

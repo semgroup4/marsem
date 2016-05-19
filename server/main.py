@@ -3,7 +3,7 @@
 
 import re
 import json
-#from serial import Serial
+from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs

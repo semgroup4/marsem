@@ -3,12 +3,13 @@
 
 import re
 import json
-from serial import Serial
+#from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import stream as streams
 
+"""
 class Car(object):
 
     def __init__(self, *args, **kwargs):
@@ -31,7 +32,7 @@ car = Car('/dev/ttyACM0', 115200)
 
 
 sleep(2)
-
+"""
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
@@ -48,17 +49,17 @@ class StreamController():
         if t:
             if self.stream != None:
                 if self.stream.isAlive():
-                    return {"status": "stream is already running"}
+                    return {"running": True}
                 else:
                     self.stream = streams.Stream()
             else:
                 self.stream = streams.Stream()
             self.stream.start()
-            return {"status": "stream started"}
+            return {"running": True}
         else:
             self.stream.stop()
             self.stream.join()
-            return {"status": "stream ended"}        
+            return {"running": False}        
 
 stream_controller = StreamController()
 
@@ -108,9 +109,9 @@ class RequestHandler(BaseHTTPRequestHandler):
     def stream_controller(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            return stream_controller.control(True)
+            return json.dumps(stream_controller.control(True))
         else:
-            return stream_controller.control(False)
+            return json.dumps(stream_controller.control(False))
 
 
     def log_message(self, format, *args):

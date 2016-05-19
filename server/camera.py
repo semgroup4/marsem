@@ -7,7 +7,6 @@ class Camera():
 
     def take_picture(self):
         with Popen(self.camera, stdout=PIPE) as picture:
-            p = picture.read()
+            p = picture.stdout.read()
             picture.kill()
-            picture.close()
             return p

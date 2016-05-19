@@ -7,7 +7,9 @@ from serial import Serial
 from time import sleep
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+
 import stream as streams
+import camera as camera
 
 class Car(object):
 

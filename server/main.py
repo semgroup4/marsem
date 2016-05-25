@@ -33,6 +33,7 @@ car = Car('/dev/ttyACM0', 115200)
 
 sleep(2)
 
+SERVER_RUNNING = True
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
@@ -84,7 +85,8 @@ class RequestHandler(BaseHTTPRequestHandler):
     urls = {
         'control': r'^/$',
         'stream_controller': r'^/stream/$',
-        'picture_controller': r'^/picture/$'
+        'picture_controller': r'^/picture/$',
+        'status_controller': r'^/status/$',
     }
 
     def do_GET(self):
@@ -140,7 +142,14 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(picture)
             return ""
             
-        
+    def status_controller(self, query):
+        global SERVER_RUNNING
+        statuses = {
+            "stream": stream_controller.running,
+            "server": SERVER_RUNNING
+        }
+        self.wfile.write(json.dumps(statuses))
+                
 
     def log_message(self, format, *args):
         self.log_file.write("%s - - [%s] %s\n" %

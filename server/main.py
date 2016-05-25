@@ -143,16 +143,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             return ""
             
     def status_controller(self, query):
-        param = query.get('status')
-        if param.lower() == 'stream':
-            return stream_controller.running
-        elif param.lower() == 'server':
-            return SERVER_RUNNING
-        else:
-            self.send_error(400,
-                            message="Invalid argument",
-                            explain="A paramater that the server doesn't understand was given")
-        
+        global SERVER_RUNNING
+        statuses = {
+            "stream": stream_controller.running,
+            "server": SERVER_RUNNING
+        }
+        self.wfile.write(json.dumps(statuses))
+                
 
     def log_message(self, format, *args):
         self.log_file.write("%s - - [%s] %s\n" %

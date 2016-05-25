@@ -10,10 +10,14 @@ from urllib.parse import urlparse, parse_qs
 import stream
 import camera
 
+SERVER_RUNNING = False
+
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
+    global SERVER_RUNNING
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     httpd.serve_forever()
+    SERVER_RUNNING = True
 
 
 class StreamController():
@@ -60,6 +64,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         'control': r'^/$',
         'stream': r'^/stream/$',
         'picture_controller': r'^/picture/$',
+        'status_controller': r'^/status/$',
     }
 
     def do_GET(self):
@@ -111,6 +116,14 @@ class RequestHandler(BaseHTTPRequestHandler):
             picture = picture_controller.control()
             self.wfile.write(picture)
             return ""
+
+    def status_controller(self, quert):
+        global SERVER_RUNNING
+        statuses = {
+            "stream": stream_controller.running,
+            "server": SERVER_RUNNING
+        }
+        return json.dumps(statuses)
 
             
 

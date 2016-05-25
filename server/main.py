@@ -148,7 +148,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             "stream": stream_controller.running,
             "server": SERVER_RUNNING
         }
-        self.wfile.write(json.dumps(statuses))
+        return json.dumps(statuses)
                 
 
     def log_message(self, format, *args):

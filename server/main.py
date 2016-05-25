@@ -33,6 +33,7 @@ car = Car('/dev/ttyACM0', 115200)
 
 sleep(2)
 
+SERVER_RUNNING = True
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
@@ -84,7 +85,8 @@ class RequestHandler(BaseHTTPRequestHandler):
     urls = {
         'control': r'^/$',
         'stream_controller': r'^/stream/$',
-        'picture_controller': r'^/picture/$'
+        'picture_controller': r'^/picture/$',
+        'status_controller': r'^/status/$',
     }
 
     def do_GET(self):
@@ -140,6 +142,16 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(picture)
             return ""
             
+    def status_controller(self, query):
+        param = query.get('status')
+        if param.lower() == 'stream':
+            return stream_controller.running
+        elif param.lower() == 'server':
+            return SERVER_RUNNING
+        else:
+            self.send_error(400,
+                            message="Invalid argument",
+                            explain="A paramater that the server doesn't understand was given")
         
 
     def log_message(self, format, *args):

@@ -4,7 +4,7 @@
 import re
 import json
 from serial import Serial
-from time import sleep
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -31,9 +31,7 @@ class Car(object):
 
 car = Car('/dev/ttyACM0', 115200)
 
-sleep(2)
-
-SERVER_RUNNING = True
+time.sleep(2)
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
     server_address = ('', port)
@@ -81,6 +79,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     log_file = open('marsem.log', 'w')
     stream = None
+    protocol_version = 'HTTP/1.1'
 
     urls = {
         'control': r'^/$',
@@ -90,10 +89,6 @@ class RequestHandler(BaseHTTPRequestHandler):
     }
 
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-
         result = urlparse(self.path)
         path = result.path
         query = {}
@@ -109,8 +104,21 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         for method, regex in self.urls.items():
             if re.match(regex, path):
-                data = getattr(self, method)(query)
-                self.wfile.write(json.dumps(data).encode())
+                data,t,e = getattr(self, method)(query)
+                ret = data
+                if e:
+                    self.send_error(e[0],message=e[1], explain=e[2])
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.send_header('Content-Type', t)
+                    if t == 'application/json':
+                        ret = json.dumps(data).encode()
+                    print(len(ret))
+                    self.send_header('Content-Length', len(ret))
+                    self.end_headers()                
+                    self.wfile.write(ret)        
+
 
     def control(self, query):
         action = query.get('action')
@@ -118,37 +126,32 @@ class RequestHandler(BaseHTTPRequestHandler):
             action = getattr(car, action, None)
             if action:
                 action()
-
-        return {}
+        return ({}, 'application/json', None)
 
 
     def stream_controller(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            return json.dumps(stream_controller.control(True))
+            return (stream_controller.control(True), 'application/json', None)
         else:
-            return json.dumps(stream_controller.control(False))
+            return (stream_controller.control(False), 'application/json', None)
 
     
     """ Takes a picture with the raspberry camera, returns a binary of the image. """
     def picture_controller(self, query):
         if stream_controller.running:
-            self.send_error(503, 
-                            message="Camera is busy", 
-                            explain="The camera is currently busy with streaming")
-            return
+            return ({}, 'application/json', (503, "Camera is busy", "The camera is currently busy with streaming"))
         else:
             picture = picture_controller.control()
-            self.wfile.write(picture)
-            return ""
+            return (picture, 'image/jpeg', None)
+            
             
     def status_controller(self, query):
-        global SERVER_RUNNING
         statuses = {
             "stream": stream_controller.running,
-            "server": SERVER_RUNNING
+            "server": True,
         }
-        return json.dumps(statuses)
+        return (statues, 'application/json', None)
                 
 
     def log_message(self, format, *args):

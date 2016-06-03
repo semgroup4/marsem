@@ -3,21 +3,41 @@
 
 import re
 import json
-from time import sleep
+
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-import stream
-import camera
+import stream as streams
+import camera as camera
 
-SERVER_RUNNING = False
+class Car(object):
+
+    def forward(self):
+        pass
+
+    def backward(self):
+        pass
+
+    def left(self):
+        pass
+
+    def right(self):
+        pass
+    
+    def stop(self):
+        pass
+
+
+car = Car()
+
+time.sleep(2)
 
 def run(server_class=HTTPServer, handler_class=BaseHTTPRequestHandler, port=8000):
-    global SERVER_RUNNING
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     httpd.serve_forever()
-    SERVER_RUNNING = True
+
 
 
 class StreamController():
@@ -29,19 +49,17 @@ class StreamController():
         if t:
             if self.stream != None:
                 if self.stream.isAlive():
-                    return {"status": "stream is already running"}
+                    return {"running": True}
                 else:
                     self.stream = streams.Stream()
             else:
                 self.stream = streams.Stream()
             self.stream.start()
-            self.running = Truex
-            return {"status": "stream started"}
+            return {"running": True}
         else:
             self.stream.stop()
             self.stream.join()
-            self.running = False
-            return {"status": "stream ended"}        
+            return {"running": False}        
 
 class PictureController():
     "Blocks the main thread until the camera has taken an image"
@@ -49,29 +67,27 @@ class PictureController():
     camera = None
 
     def control(self):
-        p = None
-        with open("test.jpg", "rb") as picture:
-            p = picture.read()
-        return p
+            self.camera = camera.Camera()
+            return self.camera.take_picture()
 
 
-picture_controller = PictureController()
+
 stream_controller = StreamController()
+picture_controller = PictureController()
 
 class RequestHandler(BaseHTTPRequestHandler):
 
+    stream = None
+    protocol_version = 'HTTP/1.1'
+
     urls = {
         'control': r'^/$',
-        'stream': r'^/stream/$',
+        'stream_controller': r'^/stream/$',
         'picture_controller': r'^/picture/$',
         'status_controller': r'^/status/$',
     }
 
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-
         result = urlparse(self.path)
         path = result.path
         query = {}
@@ -85,49 +101,57 @@ class RequestHandler(BaseHTTPRequestHandler):
                     pass
             query[key] = value
 
-        for method, regex in self.urls.items():
+        items = self.urls.items()
+        for method, regex in items:
             if re.match(regex, path):
-                data = getattr(self, method)(query)
-                self.wfile.write(json.dumps(data).encode())
+                data,t,e = getattr(self, method)(query)
+                ret = data
+                if e:
+                    self.send_error(e[0],message=e[1], explain=e[2])
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.send_header('Content-Type', t)
+                    if t == 'application/json':
+                        ret = json.dumps(data).encode()
+                    self.send_header('Content-Length', len(ret))
+                    self.end_headers()                
+                    self.wfile.write(ret)        
 
 
     def control(self, query):
         action = query.get('action')
         if action:
-            pass
-        print("Empty response")
-        return {}
+            action = getattr(car, action, None)
+            if action:
+                action()
+        return ({}, 'application/json', None)
 
 
-    def stream(self, query):
+    def stream_controller(self, query):
         param = query.get('stream')
         if param.lower() == 'true':
-            return {"message": "Stream started"}
+            return (stream_controller.control(True), 'application/json', None)
         else:
-            return {"message": "Stream ended"}                
-
-    def picture_controller(self, query):
-        if stream_controller.running:          
-            self.send_error(503, 
-                            message="Camera is busy", 
-                            explain="The camera is currently busy with streaming")
-            return
-        else:
-            picture = picture_controller.control()
-            self.wfile.write(picture)
-            return ""
-
-    def status_controller(self, quert):
-        global SERVER_RUNNING
-        statuses = {
-            "stream": stream_controller.running,
-            "server": SERVER_RUNNING
-        }
-        return json.dumps(statuses)
-
-            
-
+            return (stream_controller.control(False), 'application/json', None)
 
     
+    """ Takes a picture with the raspberry camera, returns a binary of the image. """
+    def picture_controller(self, query):
+        if stream_controller.running:
+            return ({}, 'application/json', (503, "Camera is busy", "The camera is currently busy with streaming"))
+        else:
+            picture = picture_controller.control()
+            return (picture, 'image/jpeg', None)
+            
+            
+    def status_controller(self, query):
+        statuses = {
+            "stream": stream_controller.running,
+            "server": True,
+        }
+        return (statues, 'application/json', None)
+                
 
-run(handler_class=RequestHandler)
+if __name__ == '__main__':
+    run(handler_class=RequestHandler)

@@ -92,6 +92,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         result = urlparse(self.path)
         path = result.path
         query = {}
+        data = None
+        t = None
+        e = None
+        ret = None
 
         for key, value in parse_qs(result.query).items():
             if len(value) == 1:
@@ -106,18 +110,20 @@ class RequestHandler(BaseHTTPRequestHandler):
             if re.match(regex, path):
                 data,t,e = getattr(self, method)(query)
                 ret = data
-                if e:
-                    self.send_error(e[0],message=e[1], explain=e[2])
-                    self.end_headers()
-                else:
-                    self.send_response(200)
-                    self.send_header('Content-Type', t)
-                    if t == 'application/json':
-                        ret = json.dumps(data).encode()
-                    print(len(ret))
-                    self.send_header('Content-Length', len(ret))
-                    self.end_headers()                
-                    self.wfile.write(ret)        
+        if e:
+            self.send_error(e[0],message=e[1], explain=e[2])
+            self.end_headers()
+        else:
+            if data and t:
+                self.send_response(200)
+                self.send_header('Content-Type', t)
+                if t == 'application/json':
+                    ret = json.dumps(data).encode()
+                self.send_header('Content-Length', len(ret))
+                self.end_headers()                
+                self.wfile.write(ret)
+                return
+
 
 
     def control(self, query):
